@@ -12,15 +12,16 @@ C_D = 0.05 # air resistance coefficient
 rho_0 = 1.225 # density of air at sea level
 A = np.pi*(22)**2 # cross sectional area of rocket CRS dragon of space X falcon 9
 y_ground = 0 # ground is at y = 0
-y_space = 110000 # atmosphere ends at y = 10
+y_space = 110000 # atmosphere ends at y = 110000
+H = 8000
 
 def force(m, pos_vec, vel_vec, flag, flag_escape):
 
     v_hat = vel_vec/np.linalg.norm(vel_vec)
 
     W = -m*g*np.array([0, 1])
-    AR = -0.5*rho_0*np.exp(-pos_vec[1])*C_D*A*np.linalg.norm(vel_vec)**2*v_hat
-    T_part = L*vel_vec - L*v_ej*(-v_hat)
+    AR = -0.5*rho_0*np.exp(-pos_vec[1]/H)*C_D*A*np.linalg.norm(vel_vec)**2*v_hat
+    T = L*v_ej*v_hat # thrust is dm_rocket/dt * v_ej but dm_rocket/dt is -L and v_ej is |v_ej|(-v_hat)
 
     if flag_escape: # if the rocket escaped earths atmosphere there is no external force and thrust is switched off
 
@@ -28,7 +29,7 @@ def force(m, pos_vec, vel_vec, flag, flag_escape):
 
     if not flag: # if the fuel has not ran out yet
 
-        return W + AR + T_part
+        return W + AR + T
 
     else:
 
@@ -46,8 +47,8 @@ def integrate():
     total_fuel_mass = m_rocket*0.9
     fuel_left[0] = total_fuel_mass
     pos[0] = np.array([0, y_ground])
-    y_initial_speed = 750 # 2500 # speed in meters per second
-    vel[0] = np.array([0, y_initial_speed])
+    y_initial_speed = 1000 # 750 # 1000 # 750 # 2500 # speed in meters per second
+    vel[0] = np.array([5, y_initial_speed])
     speed[0] = np.linalg.norm([0, y_initial_speed])
 
     flag = False # if fuel runs out set this to true and switch off thrust in force function
@@ -61,9 +62,10 @@ def integrate():
         if not flag: # if we have not ran out of fuel yet
             m_rocket = m_rocket - L*dt # reduce the mass of the rocket lost to ejected fuel
             ejected_mass = ejected_mass + L*dt # increase the mass of ejected fuel
-            fuel_left[t] = fuel_left[t - 1] - L * dt
-        else:
-            fuel_left[t] = 0
+            if not flag_escape:
+                fuel_left[t] = fuel_left[t - 1] - L * dt
+            else:
+                fuel_left[t] = fuel_left[t-1]
 
         if ejected_mass >= total_fuel_mass: # we ran out of fuel
 
@@ -90,14 +92,14 @@ min_x = min(data.transpose()[0])
 if max_y < y_space:
     ax = plt.axes(xlim = (min_x-1, max_x+1),ylim=(y_ground, y_space + 1))  # y limits of the figure are from y = 0 to y_space + 1
 else:
-    ax = plt.axes(xlim = (min_x-1, max_x+1),ylim = (y_ground, max_y)) # y limits of the figure are from y = 0 to max y reached by rocket
+    ax = plt.axes(xlim = (min_x-1, max_x+1),ylim = (y_ground, y_space*2)) # y limits of the figure are from y = 0 to max y reached by rocket
 plt.hlines(0, min_x-1, max_x+1, color = 'green', linewidth = 5) # make a plot of a horizontal line at y = 0 from min x to max x representing the ground
 plt.hlines(y_space, min_x-1, max_x+1, color = 'r', linewidth = 5, zorder = 0) # represents the max height of atmosphere
 animation_plot = ax.scatter(data[0][0], data[0][1], s = 100)
 
 def update_animation_plot(i):
 
-    skip = 100
+    skip = 50
     idx = (i+1)*skip
     scatter_point = data[idx]
     if scatter_point[1] <= y_ground:
@@ -110,4 +112,3 @@ def update_animation_plot(i):
 
 anim = FuncAnimation(fig, update_animation_plot, interval = 0.0000000001, repeat = False)
 plt.show()
-
